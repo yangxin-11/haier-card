@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>海尔AI海报助手 Haier Poster AI</title>
+  <!-- Vue.js -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+  <!-- Vuex -->
+  <script src="https://cdn.jsdelivr.net/npm/vuex@3.6.2/dist/vuex.js"></script>
+  <!-- html2canvas (DOM 转图片) -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    /* 全局样式及模板一样式 */
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap');
+    :root {
+      --primary-color: #0072c6;
+      --primary-dark: #005b9e;
+      --primary-light: #e6f2ff;
+      --text-color: #333;
+      --border-color: #e0e0e0;
+      --bg-gray: #f5f5f5;
+      --shadow-color: rgba(0, 0, 0, 0.1);
+    }
+    * {
+      margin: 0; padding: 0; box-sizing: border-box;
+    }
+    body {
+      font-family: 'Noto Sans SC', sans-serif;
+      background-color: var(--bg-gray);
+      color: var(--text-color);
+      line-height: 1.6;
+    }
+    header {
+      background-color: var(--primary-color);
+      color: #fff;
+      text-align: center;
+      padding: 1.5rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+      box-shadow: 0 2px 4px var(--shadow-color);
+    }
+    .toggle-editor {
+      display: none;
+    }
+    main {
+      display: flex;
+      min-height: calc(100vh - 120px);
+      position: relative;
+    }
+    .editor {
+      flex: 0 0 400px;
+      background: #fff;
+      padding: 1.5rem;
+      overflow-y: auto;
+      box-shadow: 2px 0 8px var(--shadow-color);
+      position: sticky;
+      top: 0;
+      height: calc(100vh - 120px);
+    }
+    .card {
+      background-color: #fff;
+      margin-bottom: 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px var(--shadow-color);
+      padding: 1.25rem;
+      border: 1px solid var(--border-color);
+      animation: fadeIn 0.3s ease-out;
+    }
+    .card h3 {
+      margin: 0 0 1rem;
+      font-size: 1.1rem;
+      color: var(--primary-color);
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--border-color);
+    }
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: var(--text-color);
+    }
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    select {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 0.95rem;
+      transition: all 0.3s ease;
+    }
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    input[type="date"]:focus,
+    select:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 2px rgba(0, 114, 198, 0.1);
+      outline: none;
+    }
+    .checkbox-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .checkbox-group label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+    }
+    .checkbox-group input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+    .preview {
+      flex: 1;
+      padding: 2rem;
+      background: var(--bg-gray);
+      overflow-y: auto;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+    /* 模板一：海报容器及样式（缩放） */
+    .poster-container {
+      width: 65%;
+      max-width: 800px;
+      margin: 20px auto;
+      position: relative;
+      overflow: hidden;
+    }
+    .poster {
+      width: 1080px;
+      height: 2032px;
+      background: linear-gradient(135deg, var(--primary-light) 0%, #fff 100%);
+      border-radius: 12px;
+      position: relative;
+      box-shadow: 0 10px 30px var(--shadow-color);
+      padding-bottom: 100px;
+    }
+    .molecule-pattern {
+      position: absolute;
+      top: 100px;
+      left: 100px;
+      width: 300px;
+      height: 300px;
+      opacity: 0.1;
+      z-index: 1;
+    }
+    .vegetable-silhouette {
+      position: absolute;
+      bottom: 400px;
+      right: 100px;
+      width: 250px;
+      height: 250px;
+      opacity: 0.05;
+      z-index: 1;
+    }
+    .logo {
+      position: absolute;
+      top: 60px;
+      right: 60px;
+      width: 150px;
+      height: 60px;
+      background-color: #006699;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: 700;
+      border-radius: 4px;
+      font-size: 24px;
+    }
+    .header {
+      padding: 120px 80px 0;
+      text-align: center;
+    }
+    .main-title {
+      font-size: 72px;
+      font-weight: 700;
+      color: #006699;
+      margin: 0;
+      line-height: 1.3;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.05);
+    }
+    .sub-title {
+      font-size: 36px;
+      font-weight: 500;
+      color: #0088cc;
+      margin: 30px 0 0;
+    }
+    .content {
+      display: flex;
+      padding: 60px 100px;
+      height: 650px;
+      align-items: center;
+    }
+    .product-image {
+      flex: 1;
+      position: relative;
+      background-color: rgba(255, 255, 255, 0.7);
+      border-radius: 16px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+      height: 100%;
+    }
+    .cold-air {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 160px;
+      background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.8) 100%);
+      border-radius: 50% 50% 0 0;
+      filter: blur(20px);
+      animation: airFlow 3s infinite alternate;
+    }
+    .product-placeholder {
+      color: #006699;
+      font-size: 28px;
+    }
+    .features {
+      flex: 1;
+      padding-left: 80px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 40px;
+    }
+    .feature-item {
+      display: flex;
+      align-items: center;
+    }
+    .feature-icon {
+      width: 80px;
+      height: 80px;
+      background-color: #006699;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-size: 40px;
+      margin-right: 30px;
+      flex-shrink: 0;
+      box-shadow: 0 4px 15px rgba(0, 102, 153, 0.2);
+    }
+    .feature-text {
+      font-size: 32px;
+      font-weight: 500;
+      color: #003366;
+    }
+    .stats {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      padding: 0 100px;
+      margin: 40px 0;
+    }
+    .stat-card {
+      background-color: white;
+      border-radius: 20px;
+      padding: 30px;
+      width: 280px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+      text-align: center;
+    }
+    .stat-card:hover {
+      transform: translateY(-5px);
+    }
+    .stat-icon {
+      font-size: 48px;
+      margin-bottom: 20px;
+      color: #006699;
+    }
+    .stat-value {
+      font-size: 48px;
+      font-weight: 700;
+      margin: 15px 0;
+      line-height: 1.2;
+    }
+    .stat-label {
+      font-size: 24px;
+      color: #666;
+    }
+    .promo {
+      padding: 60px 100px;
+      text-align: center;
+      margin-top: 40px;
+      margin-bottom: 260px;
+    }
+    .price-container {
+      display: inline-block;
+      position: relative;
+      padding: 15px 40px;
+      margin-bottom: 20px;
+    }
+    .price {
+      font-size: 72px;
+      font-weight: 700;
+      color: #e63946;
+      margin: 0;
+      position: relative;
+      z-index: 1;
+      line-height: 1.2;
+    }
+    .price-badge {
+      position: absolute;
+      top: -25px;
+      left: -40px;
+      right: -40px;
+      bottom: -25px;
+      background: linear-gradient(135deg, rgba(255,215,0,0.3) 0%, rgba(255,255,255,0.8) 100%);
+      border-radius: 80px;
+      transform: rotate(-2deg);
+      z-index: 0;
+      border: 1px solid rgba(255,215,0,0.5);
+    }
+    .original-price {
+      font-size: 40px;
+      color: #999;
+      text-decoration: line-through;
+      margin-left: 25px;
+      position: relative;
+      z-index: 1;
+    }
+    .time {
+      font-size: 32px;
+      color: #006699;
+      margin: 20px 0;
+      font-weight: 500;
+    }
+    .channels {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin-top: 30px;
+    }
+    .channel {
+      background-color: white;
+      padding: 15px 40px;
+      border-radius: 40px;
+      font-size: 24px;
+      color: #006699;
+      font-weight: 500;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+      transition: transform 0.3s ease;
+    }
+    .channel:hover {
+      transform: translateY(-2px);
+    }
+    .qrcode {
+      position: absolute;
+      bottom: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 200px;
+      height: 200px;
+      background-color: #fff;
+      border-radius: 16px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+    .qrcode img {
+      width: 180px;
+      height: 180px;
+      object-fit: contain;
+      padding: 10px;
+    }
+    footer {
+      background: #fff;
+      padding: 1rem;
+      text-align: center;
+      box-shadow: 0 -2px 4px var(--shadow-color);
+    }
+    .button-group {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .button-group button {
+      padding: 0.75rem 1.5rem;
+      background: var(--primary-color);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .button-group button:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+    .button-group button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    /* Toast通知样式 */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 4px;
+      z-index: 9999;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      opacity: 0;
+    }
+    
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+    
+    .toast-success {
+      background-color: rgba(40, 167, 69, 0.9);
+    }
+    
+    .toast-error {
+      background-color: rgba(220, 53, 69, 0.9);
+    }
+    
+    .toast-warning {
+      background-color: rgba(255, 193, 7, 0.9);
+    }
+    /* 模板二：洗衣机样式，不受全局缩放影响 */
+    /* 删除继承自poster-container的模板二样式 */
+    .template2-container {
+      width: 65%;
+      max-width: 800px;
+      margin: 20px auto;
+      position: relative;
+      overflow: hidden;
+      transform: none !important;
+    }
+    
+    .template2-poster {
+      width: 1080px;
+      height: 2032px;
+      background: linear-gradient(135deg, #e8f0ff 0%, #fff1f5 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 60px;
+      box-sizing: border-box;
+      color: #333;
+      position: relative;
+      transform-origin: top left;
+      box-shadow: 0 10px 30px var(--shadow-color);
+      border-radius: 12px;
+      padding-bottom: 300px;
+    }
+    
+    .template2-poster .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding: 0;
+    }
+    
+    .template2-poster .brand {
+      font-size: 72px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 20px;
+    }
+    
+    .template2-poster .subtitle {
+      font-size: 36px;
+      font-weight: bold;
+      color: #4a90e2;
+      margin: 20px 0;
+    }
+    
+    .template2-poster .product-image {
+      width: 100%;
+      height: 420px;
+      background: #fff;
+      border-radius: 20px;
+      margin: 30px 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+      position: relative;
+      flex: initial;
+    }
+    
+    .template2-poster .selling-points {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 25px;
+      margin: 30px 0;
+    }
+    
+    .template2-poster .point-item {
+      background: rgba(255,255,255,0.9);
+      padding: 30px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    }
+    
+    .template2-poster .point-icon {
+      font-size: 40px;
+      background-color: #e6f2ff;
+      width: 80px;
+      height: 80px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 50%;
+    }
+    
+    .template2-poster .point-text {
+      font-size: 28px;
+      font-weight: 500;
+    }
+    
+    .template2-poster .core-data {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 25px;
+      margin: 30px 0;
+    }
+    
+    .template2-poster .data-item {
+      background: rgba(255,255,255,0.9);
+      padding: 25px;
+      border-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+      text-align: center;
+    }
+    
+    .template2-poster .data-icon {
+      font-size: 40px;
+      margin-bottom: 15px;
+      width: auto;
+      text-align: center;
+      color: #4a90e2;
+    }
+    
+    .template2-poster .data-content {
+      width: 100%;
+    }
+    
+    .template2-poster .data-value {
+      font-size: 36px;
+      font-weight: bold;
+      color: #2c3e50;
+      margin-bottom: 8px;
+    }
+    
+    .template2-poster .data-desc {
+      font-size: 24px;
+      color: #666;
+    }
+    
+    .template2-poster .price-section {
+      background: #fff;
+      border-radius: 25px;
+      padding: 40px;
+      text-align: center;
+      margin: 30px 0;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+    }
+    
+    .template2-poster .current-price {
+      font-size: 60px;
+      color: #ff6b6b;
+      font-weight: bold;
+    }
+    
+    .template2-poster .original-price {
+      text-decoration: line-through;
+      color: #999;
+      margin-left: 20px;
+      font-size: 36px;
+    }
+    
+    .template2-poster .promotion-period {
+      font-size: 28px;
+      color: #666;
+      margin: 20px 0;
+    }
+    
+    .template2-poster .channels {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 30px;
+      flex-wrap: wrap;
+    }
+    
+    .template2-poster .channel-item {
+      background: #f8f9fa;
+      padding: 15px 30px;
+      border-radius: 30px;
+      font-size: 24px;
+      color: #666;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+    
+    .template2-poster .qrcode-container {
+      text-align: center;
+      margin-top: 40px;
+      position: absolute;
+      bottom: 100px;
+      left: 0;
+      right: 0;
+    }
+    
+    .template2-poster .qrcode-container img {
+      width: 200px;
+      height: 200px;
+      border-radius: 15px;
+      padding: 10px;
+      background-color: white;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* 编辑区功能按钮样式 */
+    .editor-button-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+    }
+    
+    .editor-button-group button {
+      padding: 12px;
+      background: var(--primary-color);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      width: 100%;
+    }
+    
+    .editor-button-group button:hover {
+      background: var(--primary-dark);
+      transform: translateY(-2px);
+    }
+    
+    .editor-button-group button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      opacity: 0.7;
+    }
+
+    /* AI功能按钮样式 */
+    .primary-button {
+      padding: 10px 15px;
+      background: var(--primary-color);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      margin-top: 10px;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .primary-button:hover {
+      background: var(--primary-dark);
+      transform: translateY(-2px);
+    }
+    
+    .primary-button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      opacity: 0.7;
+    }
+    
+    .ai-button {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .ai-button::before {
+      content: '';
+      position: absolute;
+      top: -10px;
+      left: -10px;
+      right: -10px;
+      bottom: -10px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transform: translateX(-100%);
+      transition: transform 0.5s ease;
+    }
+    
+    .ai-button:hover::before {
+      transform: translateX(100%);
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>海尔AI海报助手 Haier Poster AI</header>
+    <div class="toggle-editor" @click="toggleEditor" style="position: static; margin-bottom: 1rem;">{{ editorVisible ? '隐藏编辑面板' : '显示编辑面板' }}</div>
+    <main>
+      <!-- 左侧编辑面板 -->
+      <div class="editor" v-show="editorVisible">
+        <!-- 模板选择 -->
+        <div class="card">
+          <h3>模板选择</h3>
+          <label>
+            <input type="radio" value="template1" v-model="currentTemplate"> 模板一
+          </label>
+          <label>
+            <input type="radio" value="template2" v-model="currentTemplate"> 模板二
+          </label>
+        </div>
+        
+        <!-- AI生成海报文案 -->
+        <div class="card">
+          <h3>AI生成海报文案</h3>
+          <label>产品描述</label>
+          <input type="text" v-model="aiProductDesc" placeholder="请输入产品名称或一句描述">
+          <button class="primary-button ai-button" @click="generateByAI">
+            <span>AI一键生成</span>
+          </button>
+        </div>
+        
+        <!-- 标题编辑区 -->
+        <div class="card">
+          <h3>标题编辑区</h3>
+          <label>主标题</label>
+          <input type="text" v-model="form.mainTitle">
+          <label>副标题</label>
+          <input type="text" v-model="form.subTitle">
+        </div>
+        <!-- 核心卖点编辑区 -->
+        <div class="card">
+          <h3>核心卖点编辑区</h3>
+          <div v-for="(point, index) in form.sellingPoints" :key="index" style="margin-bottom:10px;">
+            <label>卖点 {{ index + 1 }}</label>
+            <input type="text" v-model="point.text" placeholder="描述">
+            <input type="text" v-model="point.icon" placeholder="图标(可输入Emoji)">
+          </div>
+          <button class="primary-button ai-button" @click="generateIconsByAI('sellingPoints')">
+            <span>AI生成icon</span>
+          </button>
+        </div>
+        <!-- 数据展示编辑区 -->
+        <div class="card">
+          <h3>数据展示编辑区</h3>
+          <div v-for="(item, index) in form.dataItems" :key="index" style="margin-bottom:10px;">
+            <label>数据项 {{ index + 1 }}</label>
+            <input type="text" v-model="item.icon" placeholder="图标(可输入Emoji)">
+            <input type="text" v-model="item.value" placeholder="数值">
+            <input type="text" v-model="item.unit" placeholder="单位(如 '天','度','dB(A)')">
+            <input type="text" v-model="item.desc" placeholder="描述">
+          </div>
+          <button class="primary-button ai-button" @click="generateIconsByAI('dataItems')">
+            <span>AI生成icon</span>
+          </button>
+        </div>
+        <!-- 促销信息编辑区 -->
+        <div class="card">
+          <h3>促销信息编辑区</h3>
+          <label>当前价格</label>
+          <input type="number" v-model="form.promo.currentPrice" placeholder="现价">
+          <label>原价</label>
+          <input type="number" v-model="form.promo.originalPrice" placeholder="原价">
+          <label>促销时间段</label>
+          <input type="text" v-model="form.promo.promoDateText" placeholder="例如：5月9日-5月23日">
+          <label>销售渠道(多选)</label>
+          <div>
+            <label><input type="checkbox" value="海尔商城" v-model="form.promo.channels"> 海尔商城</label>
+            <label><input type="checkbox" value="京东" v-model="form.promo.channels"> 京东</label>
+            <label><input type="checkbox" value="天猫" v-model="form.promo.channels"> 天猫</label>
+          </div>
+        </div>
+        <!-- 产品图片上传 -->
+        <div class="card">
+          <h3>产品图片上传</h3>
+          <p>支持PNG、JPEG格式，最大2MB</p>
+          <input type="file" @change="handleImageUpload">
+          <div v-if="uploadError" style="color:red;">{{ uploadError }}</div>
+        </div>
+        <!-- 二维码上传 -->
+        <div class="card">
+          <h3>二维码上传</h3>
+          <p>支持PNG、JPEG格式，最大2MB</p>
+          <input type="file" @change="handleQrUpload">
+          <div v-if="qrUploadError" style="color:red;">{{ qrUploadError }}</div>
+        </div>
+        
+        <!-- 功能按钮区域 -->
+        <div class="card">
+          <h3>功能区</h3>
+          <div class="editor-button-group">
+            <button @click="generatePoster">生成海报</button>
+            <button @click="downloadPoster" :disabled="!canvasUrl">下载图片</button>
+            <button @click="resetForm">重置表单</button>
+          </div>
+        </div>
+      </div>
+      <!-- 右侧预览区域 -->
+      <div class="preview">
+        <!-- 模板一预览 -->
+        <div class="poster-container" v-if="currentTemplate==='template1'">
+          <div class="poster" ref="poster">
+            <div class="molecule-pattern"></div>
+            <div class="vegetable-silhouette"></div>
+            <div class="logo">Haier</div>
+            <div class="header">
+              <h1 class="main-title">{{ form.mainTitle }}</h1>
+              <p class="sub-title">{{ form.subTitle }}</p>
+            </div>
+            <div class="content">
+              <div class="product-image">
+                <div class="cold-air"></div>
+                <div v-if="form.imageUrl">
+                  <img :src="form.imageUrl" alt="产品图" style="max-width:100%;max-height:100%;"/>
+                </div>
+                <div class="product-placeholder" v-else>
+                  【上传产品图】
+                </div>
+              </div>
+              <div class="features">
+                <div class="feature-item" v-for="(point, i) in form.sellingPoints" :key="i">
+                  <div class="feature-icon">{{ point.icon || '❓' }}</div>
+                  <div class="feature-text">{{ point.text }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="stats">
+              <div class="stat-card" v-for="(item, i) in form.dataItems" :key="i">
+                <div class="stat-icon" v-html="item.icon"></div>
+                <div class="stat-value">{{ item.value }}{{ item.unit }}</div>
+                <div class="stat-label">{{ item.desc }}</div>
+              </div>
+            </div>
+            <div class="promo">
+              <div class="price-container">
+                <div class="price-badge"></div>
+                <p class="price">
+                  ¥{{ form.promo.currentPrice }}
+                  <span class="original-price" v-if="form.promo.originalPrice">¥{{ form.promo.originalPrice }}</span>
+                </p>
+              </div>
+              <p class="time" v-if="form.promo.promoDateText">
+                限时特惠：{{ form.promo.promoDateText }}
+              </p>
+              <div class="channels">
+                <div class="channel" v-for="(channel, idx) in form.promo.channels" :key="idx">{{ channel }}</div>
+              </div>
+            </div>
+            <div class="qrcode" v-if="form.qrCodeUrl">
+              <img :src="form.qrCodeUrl" alt="二维码">
+            </div>
+          </div>
+        </div>
+        <!-- 模板二预览 (洗衣机模板) -->
+        <div class="template2-container" v-else-if="currentTemplate==='template2'">
+          <div class="template2-poster" ref="poster">
+            <div class="header">
+              <div class="brand">{{ form.mainTitle }}</div>
+              <div class="subtitle">{{ form.subTitle }}</div>
+            </div>
+            <div class="product-image">
+              <div v-if="form.imageUrl">
+                <img :src="form.imageUrl" alt="产品图" style="max-width:100%;max-height:100%;" />
+              </div>
+              <div v-else>
+                <span style="font-size:32px;color:#999;">【上传产品图】</span>
+              </div>
+            </div>
+            <div class="selling-points">
+              <div class="point-item" v-for="(point, index) in form.sellingPoints" :key="index">
+                <span class="point-icon">{{ point.icon || '❓' }}</span>
+                <span class="point-text">{{ point.text }}</span>
+              </div>
+            </div>
+            <div class="core-data">
+              <div class="data-item" v-for="(item, index) in form.dataItems" :key="index">
+                <span class="data-icon" v-html="item.icon"></span>
+                <div class="data-content">
+                  <div class="data-value">{{ item.value }}{{ item.unit }}</div>
+                  <div class="data-desc">{{ item.desc }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="price-section">
+              <span class="current-price">¥{{ form.promo.currentPrice }}</span>
+              <span class="original-price" v-if="form.promo.originalPrice">¥{{ form.promo.originalPrice }}</span>
+              <div class="promotion-period" v-if="form.promo.promoDateText">
+                限时特惠：{{ form.promo.promoDateText }}
+              </div>
+              <div class="channels">
+                <span class="channel-item" v-for="(channel, idx) in form.promo.channels" :key="idx">{{ channel }}</span>
+              </div>
+            </div>
+            <div class="qrcode-container" v-if="form.qrCodeUrl">
+              <img :src="form.qrCodeUrl" alt="二维码">
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <footer>
+      <div>
+        &copy; 2025 海尔. 保留所有权利.
+      </div>
+    </footer>
+  </div>
+  <script>
+    // Vuex store 配置
+    const store = new Vuex.Store({
+      state: {
+        history: [],
+        historyIndex: -1,
+        maxHistory: 20 // 限制历史记录数量
+      },
+      mutations: {
+        pushState(state, payload) {
+          state.history = state.history.slice(0, state.historyIndex + 1);
+          state.history.push(JSON.parse(JSON.stringify(payload)));
+          state.historyIndex++;
+          if (state.history.length > state.maxHistory) {
+            state.history.shift();
+            state.historyIndex--;
+          }
+        },
+        undo(state) {
+          if (state.historyIndex > 0) {
+            state.historyIndex--;
+          }
+        },
+        redo(state) {
+          if (state.historyIndex < state.history.length - 1) {
+            state.historyIndex++;
+          }
+        }
+      },
+      getters: {
+        currentState: (state) => state.history[state.historyIndex],
+        canUndo: (state) => state.historyIndex > 0,
+        canRedo: (state) => state.historyIndex < state.history.length - 1
+      }
+    });
+    new Vue({
+      el: '#app',
+      store,
+      data() {
+        return {
+          editorVisible: true,
+          uploadError: '',
+          qrUploadError: '',
+          canvasUrl: '',
+          isGenerating: false,
+          isGeneratingCopy: false, // Added loading state for copy generation
+          isGeneratingIcons: false, // Added loading state for icon generation
+          currentTemplate: 'template1', // 默认模板一
+          form: {
+            mainTitle: '海尔全空间保鲜冰箱 旗舰款',
+            subTitle: '15天长效保鲜 · 重新定义新鲜标准',
+            sellingPoints: [
+              { icon: '🥦', text: '全空间保鲜科技' },
+              { icon: '🌡️', text: '阻氧干湿分储' },
+              { icon: '🦠', text: 'ABT动态杀菌' },
+              { icon: '📱', text: '智能WiFi控制' }
+            ],
+            dataItems: [
+              { icon: '🥦', value: '15', unit: '天', desc: '保鲜时长' },
+              { icon: '⚡', value: '0.58', unit: '度', desc: '日均耗电' },
+              { icon: '🔇', value: '38', unit: 'dB(A)', desc: '运行噪音' }
+            ],
+            promo: {
+              currentPrice: 5999,
+              originalPrice: 6999,
+              promoDateText: '5月9日-5月23日',
+              channels: ['海尔商城', '京东', '天猫']
+            },
+            imageUrl: '',
+            qrCodeUrl: ''
+          },
+          aiProductDesc: '' // AI生成文案的产品描述输入框
+        };
+      },
+      computed: {
+        canUndo() { return this.$store.getters.canUndo; },
+        canRedo() { return this.$store.getters.canRedo; }
+      },
+      mounted() {
+        this.pushCurrentState();
+        window.addEventListener('keydown', this.handleKeyboard);
+        scalePoster();
+      },
+      beforeDestroy() {
+        window.removeEventListener('keydown', this.handleKeyboard);
+      },
+      methods: {
+        handleKeyboard(e) {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+            e.preventDefault();
+            if (!e.shiftKey) this.undo();
+            else this.redo();
+          }
+        },
+        toggleEditor() {
+          this.editorVisible = !this.editorVisible;
+        },
+        handleImageUpload(e) {
+          const file = e.target.files[0];
+          this.uploadError = '';
+          if (file) {
+            const validTypes = ['image/jpeg', 'image/png'];
+            if (!validTypes.includes(file.type)) {
+              this.uploadError = '仅支持PNG和JPEG格式';
+              return;
+            }
+            if (file.size > 2 * 1024 * 1024) {
+              this.uploadError = '文件大小不能超过2MB';
+              return;
+            }
+            const img = new Image();
+            img.onload = () => {
+              if (img.width < 800 || img.height < 1000) {
+                this.uploadError = '图片尺寸建议不小于800x1000像素';
+              }
+              this.form.imageUrl = img.src;
+            };
+            img.src = URL.createObjectURL(file);
+          }
+        },
+        handleQrUpload(e) {
+          const file = e.target.files[0];
+          this.qrUploadError = '';
+          if (file) {
+            const validTypes = ['image/jpeg', 'image/png'];
+            if (!validTypes.includes(file.type)) {
+              this.qrUploadError = '仅支持PNG和JPEG格式';
+              return;
+            }
+            if (file.size > 2 * 1024 * 1024) {
+              this.qrUploadError = '文件大小不能超过2MB';
+              return;
+            }
+            const img = new Image();
+            img.onload = () => {
+              if (img.width < 200 || img.height < 200) {
+                this.qrUploadError = '二维码图片尺寸建议不小于200x200像素';
+              }
+              this.form.qrCodeUrl = img.src;
+            };
+            img.src = URL.createObjectURL(file);
+          }
+        },
+        async generatePoster() {
+          if (this.isGenerating) return;
+          this.isGenerating = true;
+          const posterRef = this.$refs.poster;
+          if (!posterRef) {
+            alert('预览区域未准备好，请稍后重试');
+            this.isGenerating = false;
+            return;
+          }
+          try {
+            const previewArea = posterRef.parentElement;
+            previewArea.scrollTop = 0;
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            const options = {
+              scale: 2,
+              useCORS: true,
+              logging: false,
+              backgroundColor: null,
+              windowHeight: posterRef.scrollHeight,
+              height: posterRef.scrollHeight,
+              scrollY: -window.scrollY,
+              allowTaint: true, // 允许跨域图片
+              foreignObjectRendering: false // 关闭foreignObject渲染
+            };
+            
+            // 根据不同模板进行特殊处理
+            if (this.currentTemplate === 'template1') {
+              options.onclone = (clonedDoc) => {
+                const clonedPoster = clonedDoc.querySelector('.poster');
+                if (clonedPoster) {
+                  clonedPoster.style.height = '2032px';
+                  clonedPoster.style.width = '1080px';
+                  clonedPoster.style.position = 'relative';
+                  clonedPoster.style.transform = 'none';
+                  
+                  // 确保二维码被正确渲染
+                  if (this.form.qrCodeUrl) {
+                    const qrcode = clonedDoc.querySelector('.qrcode');
+                    if (qrcode) {
+                      qrcode.style.display = 'flex';
+                      qrcode.style.zIndex = '100';
+                    }
+                  }
+                }
+              };
+            } else if (this.currentTemplate === 'template2') {
+              options.onclone = (clonedDoc) => {
+                const clonedPoster = clonedDoc.querySelector('.template2-poster');
+                if (clonedPoster) {
+                  clonedPoster.style.height = '2032px';
+                  clonedPoster.style.width = '1080px';
+                  clonedPoster.style.position = 'relative';
+                  clonedPoster.style.transform = 'none';
+                  
+                  // 确保副标题文字样式一致
+                  const subtitle = clonedPoster.querySelector('.subtitle');
+                  if (subtitle) {
+                    subtitle.style.color = '#4a90e2';
+                    subtitle.style.background = 'none';
+                    subtitle.style.webkitBackgroundClip = 'initial';
+                    subtitle.style.webkitTextFillColor = 'initial';
+                  }
+                }
+              };
+            }
+            
+            const canvas = await html2canvas(posterRef, options);
+            this.canvasUrl = canvas.toDataURL('image/png');
+            this.showToast('海报生成成功！');
+          } catch (error) {
+            console.error('生成海报失败:', error);
+            this.showToast('生成海报失败，请重试', 'error');
+          } finally {
+            this.isGenerating = false;
+          }
+        },
+        downloadPoster() {
+          if (!this.canvasUrl) {
+            this.showToast('请先生成海报', 'warning');
+            return;
+          }
+          const link = document.createElement('a');
+          link.href = this.canvasUrl;
+          link.download = `海尔海报_${new Date().toLocaleDateString()}.png`;
+          link.click();
+        },
+        resetForm() {
+          if (!confirm('确定要重置所有内容吗？')) return;
+          this.form = {
+            mainTitle: '海尔全空间保鲜冰箱 旗舰款',
+            subTitle: '15天长效保鲜 · 重新定义新鲜标准',
+            sellingPoints: [
+              { icon: '🥦', text: '全空间保鲜科技' },
+              { icon: '🌡️', text: '阻氧干湿分储' },
+              { icon: '🦠', text: 'ABT动态杀菌' },
+              { icon: '📱', text: '智能WiFi控制' }
+            ],
+            dataItems: [
+              { icon: '🥦', value: '15', unit: '天', desc: '保鲜时长' },
+              { icon: '⚡', value: '0.58', unit: '度', desc: '日均耗电' },
+              { icon: '🔇', value: '38', unit: 'dB(A)', desc: '运行噪音' }
+            ],
+            promo: {
+              currentPrice: 5999,
+              originalPrice: 6999,
+              promoDateText: '5月9日-5月23日',
+              channels: ['海尔商城', '京东', '天猫']
+            },
+            imageUrl: '',
+            qrCodeUrl: ''
+          };
+          this.uploadError = '';
+          this.qrUploadError = '';
+          this.canvasUrl = '';
+          this.showToast('表单已重置');
+        },
+        pushCurrentState() {
+          this.$store.commit('pushState', this.form);
+        },
+        undo() {
+          if (!this.canUndo) return;
+          this.$store.commit('undo');
+          const prevState = this.$store.getters.currentState;
+          if (prevState) {
+            this.form = JSON.parse(JSON.stringify(prevState));
+          }
+        },
+        redo() {
+          if (!this.canRedo) return;
+          this.$store.commit('redo');
+          const nextState = this.$store.getters.currentState;
+          if (nextState) {
+            this.form = JSON.parse(JSON.stringify(nextState));
+          }
+        },
+        showToast(message, type = 'success') {
+          const toast = document.createElement('div');
+          toast.className = `toast toast-${type}`;
+          toast.textContent = message;
+          document.body.appendChild(toast);
+          setTimeout(() => { toast.classList.add('show'); }, 100);
+          setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => { document.body.removeChild(toast); }, 300);
+          }, 3000);
+        },
+        // AI生成文案
+        async generateByAI() {
+          if (!this.aiProductDesc) {
+            this.showToast('请输入产品描述', 'warning');
+            return;
+          }
+          if (this.isGeneratingCopy) return;
+          this.isGeneratingCopy = true;
+          this.showToast('AI正在生成文案...', 'info'); // Use info type for ongoing process
+
+          try {
+            // --- Placeholder API Call ---
+            const simulatedResponse = await this.callAIApiForCopy(this.aiProductDesc);
+            // --- End Placeholder ---
+
+            this.parseAIResponseForCopy(simulatedResponse);
+            this.showToast('AI文案生成成功！', 'success');
+
+          } catch (error) {
+            console.error('AI文案生成失败:', error);
+            this.showToast(`AI文案生成失败: ${error.message || '请稍后重试'}`, 'error');
+          } finally {
+            this.isGeneratingCopy = false;
+          }
+        },
+
+        // AI生成图标
+        async generateIconsByAI(type) {
+          if (this.isGeneratingIcons) return;
+          this.isGeneratingIcons = true;
+          this.showToast('AI正在生成图标...', 'info');
+
+          let targetArray;
+          let textKey;
+
+          if (type === 'sellingPoints') {
+            targetArray = this.form.sellingPoints;
+            textKey = 'text';
+          } else if (type === 'dataItems') {
+            targetArray = this.form.dataItems;
+            textKey = 'desc'; // Use 'desc' for data items
+          } else {
+            this.showToast('无效的图标生成类型', 'error');
+            this.isGeneratingIcons = false;
+            return;
+          }
+
+          const textsToProcess = targetArray.map(item => item[textKey]).filter(text => text); // Get non-empty texts
+
+          if (textsToProcess.length === 0) {
+            this.showToast('没有需要生成图标的文案', 'warning');
+            this.isGeneratingIcons = false;
+            return;
+          }
+
+          try {
+            // --- Placeholder API Call ---
+            // Simulates calling the API for each text individually
+            const icons = await this.callAIApiForIcons(textsToProcess);
+            // --- End Placeholder ---
+
+            // Assign icons back to the form data
+            let iconIndex = 0;
+            targetArray.forEach(item => {
+              if (item[textKey] && iconIndex < icons.length) {
+                item.icon = icons[iconIndex];
+                iconIndex++;
+              }
+            });
+
+            this.showToast('AI图标生成成功！', 'success');
+
+          } catch (error) {
+            console.error('AI图标生成失败:', error);
+            this.showToast(`AI图标生成失败: ${error.message || '请稍后重试'}`, 'error');
+          } finally {
+            this.isGeneratingIcons = false;
+          }
+        },
+
+        // --- Placeholder API Call Functions ---
+        async callAIApiForCopy(productDesc) {
+          console.log("模拟调用文案生成API，产品描述:", productDesc);
+          // Simulate network delay
+          await new Promise(resolve => setTimeout(resolve, 1500));
+
+          // Simulate a successful response based on the prompt format
+          // Replace this with your actual fetch call to the backend endpoint e.g., /api/generate-copy
+          // The backend would handle the actual LLM call and parsing
+          return `
+主标题：海尔智享家智能冰箱
+副标题：AI智控，新鲜生活新标杆
+
+4个卖点：
+🥦 全维精控保鲜
+🧊 智能动态制冷
+🦠 等离子净味除菌
+📱 APP远程智控
+
+3组数据：
+🌡️ 数值："±0.1℃"，描述："精准控温"
+🔋 数值："0.6"，描述："kWh/24h低耗电"
+💧 数值："90%"，描述："高保湿锁水"
+          `.trim();
+
+          // Simulate an error (uncomment to test error handling)
+          // throw new Error("模拟API调用失败");
+        },
+
+        async callAIApiForIcons(texts) {
+          console.log("模拟调用图标生成API，文本列表:", texts);
+          // Simulate network delay
+          await new Promise(resolve => setTimeout(resolve, 500 * texts.length)); // Delay scales with text count
+
+          // Simulate a successful response (array of emojis)
+          // Replace this with your actual fetch call(s) to the backend endpoint e.g., /api/generate-icons
+          // The backend would call the LLM for each text item.
+          const simulatedIcons = ['💡', '⚙️', '🔧', '📊', '📉', '📈', '✨', '⭐', '🌟']; // Example icons
+          return texts.map((_, index) => simulatedIcons[index % simulatedIcons.length]); // Return dummy icons based on input length
+
+          // Simulate an error (uncomment to test error handling)
+          // throw new Error("模拟图标API调用失败");
+        },
+
+        // --- Parsing Functions ---
+        parseAIResponseForCopy(response) {
+          // Basic parsing logic based on the expected format.
+          // Robust parsing should ideally happen on the backend.
+          const lines = response.split('\n').map(line => line.trim()).filter(line => line);
+          let mainTitle = '';
+          let subTitle = '';
+          const sellingPoints = [];
+          const dataItems = [];
+
+          let currentSection = null; // 'main', 'sub', 'points', 'data'
+
+          lines.forEach(line => {
+            if (line.startsWith('主标题：')) {
+              mainTitle = line.substring('主标题：'.length).trim();
+              currentSection = 'main';
+            } else if (line.startsWith('副标题：')) {
+              subTitle = line.substring('副标题：'.length).trim();
+              currentSection = 'sub';
+            } else if (line.startsWith('4个卖点：')) {
+              currentSection = 'points';
+            } else if (line.startsWith('3组数据：')) {
+              currentSection = 'data';
+            } else if (currentSection === 'points') {
+              const match = line.match(/^(\p{Emoji})\s+(.*)$/u);
+              if (match) {
+                sellingPoints.push({ icon: match[1], text: match[2].trim() });
+              }
+            } else if (currentSection === 'data') {
+               // Example line: 🌡️ 数值："±0.1℃"，描述："精准控温"
+               const iconMatch = line.match(/^(\p{Emoji})/u);
+               const valueMatch = line.match(/数值："([^"]*)"/);
+               const descMatch = line.match(/描述："([^"]*)"/);
+
+               if (iconMatch && valueMatch && descMatch) {
+                 let value = valueMatch[1].trim();
+                 let unit = '';
+                 // Basic unit extraction (can be improved)
+                 const unitExtraction = value.match(/^([\d.]+)\s*([a-zA-Z%℃]+(?:\([A-Z]+\))?)$/);
+                 if (unitExtraction) {
+                    value = unitExtraction[1];
+                    unit = unitExtraction[2];
+                 }
+
+                 dataItems.push({
+                   icon: iconMatch[1],
+                   value: value,
+                   unit: unit, // Extract unit if possible, otherwise leave empty
+                   desc: descMatch[1].trim()
+                 });
+               }
+            }
+          });
+
+          // Update form data only if parsing was successful
+          if (mainTitle) this.form.mainTitle = mainTitle;
+          if (subTitle) this.form.subTitle = subTitle;
+          if (sellingPoints.length > 0) this.form.sellingPoints = sellingPoints;
+          if (dataItems.length > 0) this.form.dataItems = dataItems;
+
+          console.log("Parsed Copy Data:", { mainTitle, subTitle, sellingPoints, dataItems });
+        }
+      },
+      watch: {
+        form: {
+          handler() { this.pushCurrentState(); },
+          deep: true
+        },
+        currentTemplate() {
+          // 模板切换后重新应用缩放逻辑
+          this.$nextTick(() => {
+            // 无论是哪个模板，都需要应用缩放
+            scalePoster();
+            // 重置画布URL，因为模板已经改变
+            this.canvasUrl = '';
+          });
+        }
+      }
+    });
+    // 对模板一和模板二都执行缩放
+    function scalePoster() {
+      const currentTemplate = document.querySelector('#app').__vue__.currentTemplate;
+      
+      if (currentTemplate === 'template1') {
+        // 针对模板一进行缩放处理
+        const container = document.querySelector('.poster-container');
+        const poster = document.querySelector('.poster');
+        if (!container || !poster) return;
+        const containerWidth = container.clientWidth;
+        const scale = containerWidth / 1080;
+        poster.style.transform = `scale(${scale})`;
+        poster.style.transformOrigin = 'top left';
+        container.style.height = (2032 * scale) + 'px';
+      } else {
+        // 针对模板二进行缩放处理
+        const container = document.querySelector('.template2-container');
+        const poster = document.querySelector('.template2-poster');
+        if (!container || !poster) return;
+        const containerWidth = container.clientWidth;
+        const scale = containerWidth / 1080;
+        poster.style.transform = `scale(${scale})`;
+        poster.style.transformOrigin = 'top left';
+        container.style.height = (2032 * scale) + 'px';
+      }
+    }
+    window.addEventListener('resize', scalePoster);
+    window.addEventListener('load', scalePoster);
+  </script>
+</body>
+</html>
